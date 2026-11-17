@@ -1,0 +1,60 @@
+name: Build firmware
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Pasang PlatformIO
+        run: pip install -U platformio
+
+      - name: Build
+        run: pio run
+
+      - name: Gabungkan jadi satu file .bin siap flash (alamat 0x0)
+        run: |
+          B=.pio/build/ttgo
+          BOOT_APP0=$(find ~/.platformio/packages/framework-arduinoespressif32 -name boot_app0.bin | head -n 1)
+          python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32 merge_bin \
+            -o ttgo-wifi-repeater.bin \
+            --flash_mode dio --flash_freq 40m --flash_size 4MB \
+            0x1000 $B/bootloader.bin \
+            0x8000 $B/partitions.bin \
+            0xe000 "$BOOT_APP0" \
+            0x10000 $B/firmware.bin
+          ls -l ttgo-wifi-repeater.bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ttgo-wifi-repeater
+          path: |
+            ttgo-wifi-repeater.bin
+            .pio/build/ttgo/firmware.bin
+
+      - name: Rilis (jika ada tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ttgo-wifi-repeater.bin
