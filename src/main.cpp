@@ -85,8 +85,8 @@ uint32_t histDn[HIST_N], histUp[HIST_N];
 uint8_t  histPos = 0;
 
 // klien
-struct Client { uint8_t mac[6]; uint32_t ip; int8_t rssi; };
-Client  clients[10];
+struct StaClient { uint8_t mac[6]; uint32_t ip; int8_t rssi; };
+StaClient clients[10];
 uint8_t nClients = 0;
 
 // pindai
